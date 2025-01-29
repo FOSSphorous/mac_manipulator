@@ -35,6 +35,12 @@ $selection = Read-Host -Prompt "Your selection is invalid. Please select an inte
 $selection = [int]$selection - 1
 } #$device[$selection]
 
+function Get-MacAddr {
+$least_sig_bit = '26ae'
+$full_range_bit = '0123456789abcdef'
+$mac_addr = -join (1 | ForEach-Object {$full_range_bit[(Get-Random -Maximum $full_range_bit.Length)]}) + -join (1 | ForEach-Object {$least_sig_bit[(Get-Random -Maximum $least_sig_bit.Length)]}) + -join (1..10 | ForEach-Object {$full_range_bit[(Get-Random -Maximum $full_range_bit.Length)]})
+$mac_addr
+}
 
 if ($Random -ne 'y') {
 $new_mac= Read-Host -Prompt "Write a new MAC address (or leave blank for a random one)"
@@ -42,7 +48,7 @@ $new_mac = $new_mac -replace "[^a-fA-F0-9 ]", ""
 if ($new_mac.Length -ne 12){ $new_mac = "" }
 } else { $new_mac = ""}
 while ($new_mac -eq "") {
-    $new_mac = (1..6 | ForEach-Object { "{0:x2}" -f (Get-Random -Minimum 0 -Maximum 255) }) -join ''
+    $new_mac = Get-MacAddr
     Write-Host "Randomly generated MAC address: $new_mac"
     
     if ($Random -ne 'y') {
@@ -65,7 +71,6 @@ $device_name = $device[$selection].name
 $RegistryPath = "HKLM:SYSTEM\CurrentControlSet\Control\Class\{4d36e972-e325-11ce-bfc1-08002be10318}\$device_id"
 $KeyName = 'NetworkAddress'
 
-#Start-Process powershell -Verb runAs
 # Bring adapter down so changes to mac address can be loaded
 Disable-NetAdapter -InterfaceDescription "$device_name" -Confirm:$false
  
