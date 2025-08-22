@@ -16,11 +16,17 @@ if (-Not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdent
 
 # Remainder of script here
 Write-Host $CommandLine
+
+# Retrieve the list of network adapters posessing a hardware address
 $device = get-wmiobject -class win32_networkadapter | select-object name,macaddress,deviceid | where-object {$_.macaddress -ne $null}
+
+# Check if the interface was pre-selected via argument
 if ($Interface -ge 1){
 $Interface = [int]$Interface - 1
 $selection = $Interface
-} else {
+} 
+# Otherwise, list out available interfaces 
+else {
 $count = 1
 $device | Select-Object name, macaddress | ForEach-Object {
     $_ |  Select-Object @{Name = 'Line'; Expression = {$count}}, *
@@ -28,13 +34,15 @@ $device | Select-Object name, macaddress | ForEach-Object {
 } | Format-Table -HideTableHeaders
 $count = $count-1
 
+# Input validation - fail if the adapter is not in the list, or non-integers are given
 $selection = Read-Host -Prompt "Select an interface (1-$count)"
-while ([int]$selection -gt $count -or [int]$selection -lt 1){
+while ($selection -match "^.*[^\d].*" -or [int]$selection -gt $count -or [int]$selection -lt 1){
 $selection = Read-Host -Prompt "Your selection is invalid. Please select an interface (1-$count)"
 }
 $selection = [int]$selection - 1
-} #$device[$selection]
+}
 
+# Generate a random MAC address
 function Get-MacAddr {
 $least_sig_bit = '26ae'
 $full_range_bit = '0123456789abcdef'
@@ -42,6 +50,7 @@ $mac_addr = -join (1 | ForEach-Object {$full_range_bit[(Get-Random -Maximum $ful
 $mac_addr
 }
 
+# Check if randomized MAC addressing was (not) pre-selected via argument
 if ($Random -ne 'y') {
 $new_mac= Read-Host -Prompt "Write a new MAC address (or leave blank for a random one)"
 $new_mac = $new_mac -replace "[^a-fA-F0-9 ]", ""
@@ -68,6 +77,7 @@ $device_id = if ([int]$device[$selection].deviceid -lt 10){
 
 $device_name = $device[$selection].name
 
+# This value is where network adapter properties are presented in the registry
 $RegistryPath = "HKLM:SYSTEM\CurrentControlSet\Control\Class\{4d36e972-e325-11ce-bfc1-08002be10318}\$device_id"
 $KeyName = 'NetworkAddress'
 
@@ -77,5 +87,5 @@ Disable-NetAdapter -InterfaceDescription "$device_name" -Confirm:$false
 # Now set the mac address
 New-ItemProperty -Path $RegistryPath -Name $KeyName -Value $new_mac -PropertyType String -Force
 
-#Bring adapter back up
+#Bring the adapter back up
 Enable-NetAdapter -InterfaceDescription "$device_name" -Confirm:$false
